@@ -2,14 +2,15 @@ package util
 
 import (
 	"crypto/rand"
-	"errors"
 	"io"
 	"log"
 	"math/big"
+	"net"
 	"net/http"
 	"time"
 
 	"github.com/nats-io/nuid"
+	"github.com/pkg/errors"
 	hashids "github.com/speps/go-hashids"
 )
 
@@ -88,5 +89,19 @@ func Fetch(method string, url string, header map[string]string, body io.Reader) 
 func TimeTrack(start time.Time, name string) {
 	elapsed := time.Since(start)
 	log.Printf("%s took %s", name, elapsed.Truncate(time.Millisecond).String())
+
+}
+
+//
+// find an available tcp port
+//
+func AvailablePort() (int, error) {
+
+	listener, err := net.Listen("tcp", ":0")
+	if err != nil {
+		return 0, errors.Wrap(err, "cannot acquire a tcp port")
+	}
+
+	return listener.Addr().(*net.TCPAddr).Port, nil
 
 }
