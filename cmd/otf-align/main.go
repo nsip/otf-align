@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
 
 	otfal "github.com/nsip/otf-align"
 	"github.com/peterbourgon/ff"
@@ -16,12 +17,13 @@ func main() {
 		_           = fs.String("config", "", "config file (optional), json format.")
 		serviceName = fs.String("name", "", "name for this alignment service instance")
 		serviceID   = fs.String("id", "", "id for this alignment service instance, leave blank to auto-generate a unique id")
-		// serviceHost = fs.String("host", "localhost", "name/address of host for this service")
-		// servicePort = fs.Int("port", 0, "port to run service on, if not specified will assign an available port automatically")
-		// niasHost    = fs.String("niasHost", "localhost", "host name/address of nias3 data server")
-		// niasPort    = fs.Int("niasPort", 0, "port that nias3 server is running on")
-		// tcHost      = fs.String("tcHost", "localhost", "host name/address of text classification server")
-		// tcPort      = fs.Int("tcPort", 0, "port that text classification server is running on")
+		serviceHost = fs.String("host", "localhost", "name/address of host for this service")
+		servicePort = fs.Int("port", 0, "port to run service on, if not specified will assign an available port automatically")
+		niasHost    = fs.String("niasHost", "localhost", "host name/address of nias3 (n3w) web service")
+		niasPort    = fs.Int("niasPort", 1323, "port that nias3 web (n3w) service is running on")
+		niasToken   = fs.String("niasToken", "", "access token for nias server when making queries")
+		tcHost      = fs.String("tcHost", "localhost", "host name/address of text classification server")
+		tcPort      = fs.Int("tcPort", 1576, "port that text classification server is running on")
 	)
 
 	ff.Parse(fs, os.Args[1:],
@@ -33,8 +35,13 @@ func main() {
 	opts := []otfal.Option{
 		otfal.Name(*serviceName),
 		otfal.ID(*serviceID),
-		// otfal.NiasPort(*niasPort),
-		// otfal.NiasHostName(*niasHost),
+		otfal.Host(*serviceHost),
+		otfal.Port(*servicePort),
+		otfal.NiasHost(*niasHost),
+		otfal.NiasPort(*niasPort),
+		otfal.NiasToken(*niasToken),
+		otfal.TcHost(*tcHost),
+		otfal.TcPort(*tcPort),
 	}
 
 	srvc, err := otfal.New(opts...)
@@ -44,5 +51,22 @@ func main() {
 	}
 
 	srvc.PrintConfig()
+
+	// signal handler for shutdown
+	closed := make(chan struct{})
+	c := make(chan os.Signal)
+	signal.Notify(c, os.Kill, os.Interrupt)
+	go func() {
+		<-c
+		fmt.Println("\notf-align shutting down")
+		srvc.Shutdown()
+		fmt.Println("otf-align closed")
+		close(closed)
+	}()
+
+	srvc.Start()
+
+	// block until shutdown by sig-handler
+	<-closed
 
 }

@@ -1,6 +1,8 @@
 package otfalign
 
 import (
+	"errors"
+
 	"github.com/nsip/otf-align/internal/util"
 )
 
@@ -48,6 +50,113 @@ func ID(id string) Option {
 			return nil
 		}
 		s.serviceID = util.GenerateID()
+		return nil
+	}
+}
+
+//
+// set the hostname/address of this service
+//
+func Host(hname string) Option {
+	return func(s *OtfAlignService) error {
+		if hname != "" {
+			s.serviceHost = hname
+			return nil
+		}
+		s.serviceHost = "localhost"
+		return nil
+	}
+}
+
+//
+// set the port to run this ersvice on.
+// if 0 then acquire avaialble port from OS
+//
+func Port(port int) Option {
+	return func(s *OtfAlignService) error {
+		if port != 0 {
+			s.servicePort = port
+			return nil
+		}
+		osPort, err := util.AvailablePort()
+		if err != nil {
+			return err
+		}
+		s.servicePort = osPort
+		return nil
+	}
+}
+
+//
+// set the hostname/address of the nias3 web server
+// defaults to loacalhost if no host given
+//
+func NiasHost(hname string) Option {
+	return func(s *OtfAlignService) error {
+		if hname != "" {
+			s.niasHost = hname
+			return nil
+		}
+		s.niasHost = "localhost"
+		return nil
+	}
+}
+
+//
+// set the port of the nias3 web server
+// defaults to 1323 (n3w defalt port)
+//
+func NiasPort(port int) Option {
+	return func(s *OtfAlignService) error {
+		if port != 0 {
+			s.niasPort = port
+			return nil
+		}
+		s.niasPort = 1323
+		return nil
+	}
+}
+
+//
+// set the hostname/address of the nias3 web server
+// defaults to loacalhost if no host given
+//
+func NiasToken(tkn string) Option {
+	return func(s *OtfAlignService) error {
+		if tkn != "" {
+			s.niasToken = tkn
+			return nil
+		}
+		return errors.New("must have access token for n3w")
+	}
+}
+
+//
+// set the hostname/address of the text classifier (otf-classifier) web service
+// defaults to localhost if no host given
+//
+func TcHost(hname string) Option {
+	return func(s *OtfAlignService) error {
+		if hname != "" {
+			s.tcHost = hname
+			return nil
+		}
+		s.tcHost = "localhost"
+		return nil
+	}
+}
+
+//
+// set the port of the text classifier web service
+// defaults to 1576 (otf-classifier default port)
+//
+func TcPort(port int) Option {
+	return func(s *OtfAlignService) error {
+		if port != 0 {
+			s.tcPort = port
+			return nil
+		}
+		s.tcPort = 1576
 		return nil
 	}
 }
