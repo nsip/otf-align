@@ -19,13 +19,13 @@ import (
 //
 func GenerateName() string {
 
-	name := "reader"
+	name := "aligner"
 
 	// generate a random number
 	number0, err := rand.Int(rand.Reader, big.NewInt(10000000))
 
 	hd := hashids.NewData()
-	hd.Salt = "otf-reader random name generator 2020"
+	hd.Salt = "otf-align random name generator 2020"
 	hd.MinLength = 5
 	h, err := hashids.NewWithData(hd)
 	if err != nil {
