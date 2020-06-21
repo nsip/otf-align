@@ -2,17 +2,46 @@ package util
 
 import (
 	"crypto/rand"
+	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"math/big"
 	"net"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/nats-io/nuid"
 	"github.com/pkg/errors"
 	hashids "github.com/speps/go-hashids"
 )
+
+var (
+	once      sync.Once
+	netClient *http.Client
+)
+
+//
+// create a singleton http client to ensure
+// maximum reuse of connection
+//
+func newNetClient() *http.Client {
+	once.Do(func() {
+		var netTransport = &http.Transport{
+			Dial: (&net.Dialer{
+				Timeout: 10 * time.Second,
+			}).Dial,
+			TLSHandshakeTimeout: 2 * time.Second,
+		}
+		netClient = &http.Client{
+			Timeout:   time.Second * 2,
+			Transport: netTransport,
+		}
+	})
+
+	return netClient
+}
 
 //
 // generate a short useful unique name - hashid in this case
@@ -52,34 +81,55 @@ func GenerateID() string {
 
 }
 
-// Fetch makes network calls using the method (POST/GET..), the URL // to hit, headers to add (if any), and the body of the request.
-// Feel free to add more stuff to before/after making the actual n/w call!
-func Fetch(method string, url string, header map[string]string, body io.Reader) (*http.Response, error) {
-	// Create client with required custom parameters.
-	// Options: Disable keep-alives, 30sec n/w call timeout.
-	client := &http.Client{
-		Transport: &http.Transport{
-			DisableKeepAlives: true,
-		},
-		Timeout: time.Duration(10 * time.Second),
-	}
+//
+// Makes network calls to other services (text-class, nias), and returns
+// the response payload as bytes, or an error
+//
+// method - http method to invoke (post/put/get etc.)
+// header - map of headers to include in request
+// body - reader for any content to supply as request body
+//
+func Fetch(method string, url string, header map[string]string, body io.Reader) ([]byte, error) {
+
 	// Create request.
-	req, _ := http.NewRequest(method, url, body)
+	req, err := http.NewRequest(method, url, body)
+	if err != nil {
+		return nil, err
+	}
+
 	// Add any required headers.
 	for key, value := range header {
 		req.Header.Add(key, value)
 	}
-	// Perform said network call.
-	res, err := client.Do(req)
+
+	// Perform the network call.
+	res, err := newNetClient().Do(req)
 	if err != nil {
-		// glog.Error(err.Error()) // use glog it's amazing
 		return nil, err
 	}
-	// If response from network call is not 200, return error too.
+
+	//
+	// TODO: turn off in production
+	//
+	// responseDump, err := httputil.DumpResponse(res, true)
+	// if err != nil {
+	// 	fmt.Println("resp-dump error: ", err)
+	// }
+	// fmt.Println(string(responseDump))
+
+	// If response from network call is not 200, return error.
 	if res.StatusCode != http.StatusOK {
-		return res, errors.New("Network call did not return SUCCESS!")
+		return nil, errors.New(fmt.Sprintf("Network call failed with response: %d", res.StatusCode))
 	}
-	return res, nil
+
+	// return response payload as bytes
+	respByte, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot read Fetch response")
+	}
+	res.Body.Close()
+
+	return respByte, nil
 }
 
 //

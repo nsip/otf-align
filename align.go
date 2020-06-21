@@ -1,15 +1,19 @@
 package otfalign
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/http/httputil"
 	"os"
 	"time"
 
+	"github.com/iancoleman/strcase"
 	"github.com/labstack/echo"
 	"github.com/labstack/gommon/log"
+	"github.com/nsip/otf-align/internal/util"
+	"github.com/pkg/errors"
 )
 
 type OtfAlignService struct {
@@ -56,6 +60,11 @@ type AlignRequest struct {
 	// inferred: will typically be a piece of free-form text such as a question or observation
 	//
 	AlignToken interface{} `json:"alignToken" form:"alignToken" query:"alignToken"`
+	//
+	// the general capability the alignment belogs to; the broad
+	// categories of the NPLs; Literacy & Numeracy.
+	//
+	AlignCapability string `json:"alignCapability" form:"alignCapability" query:"alignCapability"`
 }
 
 //
@@ -76,9 +85,73 @@ func New(options ...Option) (*OtfAlignService, error) {
 		return c.JSON(http.StatusOK, "OK")
 	})
 	// add align method
-	srvc.e.POST("/align", align)
+	srvc.e.POST("/align", srvc.buildAlignHandler())
+	// srvc.e.POST("/align", srvc.align)
 
 	return &srvc, nil
+}
+
+//
+// creates the main align method
+// requires an input of request variables (in json)
+// alignMethod: one of (prescribed|mapped|inferred)
+// alignToken: string (reference such as an AC ref for mapped alignment,
+// or the text to be used as input
+// to the text classifier for inferred alignment)
+// prescribed looks up full GESDI if necessary.
+//
+func (s *OtfAlignService) buildAlignHandler() echo.HandlerFunc {
+
+	tcURL := fmt.Sprintf("http://%s:%d/align", s.tcHost, s.tcPort)         // text classifier address
+	niasURL := fmt.Sprintf("http://%s:%d/graphql", s.niasHost, s.niasPort) // n3w address
+	sName := s.serviceName
+	sID := s.serviceID
+
+	return func(c echo.Context) error {
+		// check required params are in input
+		ar := &AlignRequest{}
+		if err := c.Bind(ar); err != nil {
+			fmt.Println("bind error: ", err)
+			return echo.NewHTTPError(http.StatusBadRequest, err)
+		}
+
+		// token could be any json type so convert to string
+		stringToken := fmt.Sprintf("%v", ar.AlignToken)
+
+		if ar.AlignMethod == "" || stringToken == "" || ar.AlignCapability == "" {
+			return echo.NewHTTPError(http.StatusBadRequest, "must supply values for alignMethod, alignToken and alignCapability")
+		}
+
+		alignResponse := map[string]interface{}{}
+		switch ar.AlignMethod {
+		case "inferred", "mapped", "prescribed":
+			headers := map[string]string{"Content-Type": "application/json"}
+			method := "POST"
+			requestJson := []byte(fmt.Sprintf(`{"area":"%s", "text":"%s"}`, ar.AlignCapability, stringToken))
+			body := bytes.NewReader(requestJson)
+			res, err := util.Fetch(method, tcURL, headers, body)
+			if err != nil {
+				fmt.Printf("\tfetch error:\n%s\n", err)
+				return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+			}
+			alignResponse, err = reformatClassifierResponse(res)
+			if err != nil {
+				fmt.Printf("\treformat error:\n%s\n", err)
+				return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+			}
+		default:
+			_ = niasURL
+		}
+		alignResponse["alignMethod"] = ar.AlignMethod
+		alignResponse["alignToken"] = ar.AlignToken
+		alignResponse["alignCapability"] = ar.AlignCapability
+		alignResponse["alignServiceID"] = sID
+		alignResponse["alignServiceName"] = sName
+
+		return c.JSON(http.StatusOK, alignResponse)
+
+		return nil
+	}
 }
 
 //
@@ -99,52 +172,41 @@ func (s *OtfAlignService) Start() {
 }
 
 //
-// the main align method
-// requires an input of request variables (in json)
-// alignMethod: one of (prescribed|mapped|inferred)
-// alignToken: string (reference such as an AC ref for mapped alignment,
-// or the text to be used as input
-// to the text classifier for inferred alignment)
-// prescribed looks up full GESDI if necessary.
+// create the simplified return structure
+// cr: payload returned by otf-classifier as bytes
+// returns a map[string]interface{} to be converted to json
+// on return to sender
 //
-func align(c echo.Context) error {
+func reformatClassifierResponse(cr []byte) (map[string]interface{}, error) {
 
-	//
-	// TODO: disable for production/release
-	// show the full request
-	//
-	requestDump, err := httputil.DumpRequest(c.Request(), true)
+	// // return just first entry - highest match
+	var clResp []map[string]interface{}
+	err := json.Unmarshal(cr, &clResp)
 	if err != nil {
-		fmt.Println("req-dump error: ", err)
+		return nil, errors.Wrap(err, "unable to unmarshal response from classifier")
 	}
-	fmt.Println(string(requestDump))
+	firstRec := clResp[0]
 
-	// check required params are in input
-	ar := &AlignRequest{}
-	if err := c.Bind(ar); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, err)
+	alignments := []map[string]interface{}{}
+	alignment := map[string]interface{}{
+		"itemID":           firstRec["Item"],
+		"developmentLevel": firstRec["DevLevel"],
+		"itemText":         firstRec["Text"],
+	}
+	// convert paths array into object
+	paths := firstRec["Path"].([]interface{})
+	for _, path := range paths {
+		p := path.(map[string]interface{})
+		key := strcase.ToLowerCamel(p["Key"].(string)) // ensure keys work as json keys
+		alignment[key] = p["Val"]
+	}
+	alignments = append(alignments, alignment)
+
+	otfResponse := map[string]interface{}{
+		"alignments": alignments,
 	}
 
-	// token could be any json type so convert to string
-	stringToken := fmt.Sprintf("%v", ar.AlignToken)
-
-	if ar.AlignMethod == "" || stringToken == "" {
-		fmt.Println("align binding failed")
-		return echo.NewHTTPError(http.StatusBadRequest, "must supply values for alignMethod and alignToken")
-	}
-
-	// fmt.Printf("\ninput:\n%#v\n", ar)
-
-	return c.JSON(http.StatusOK, ar)
-
-	// switch based on method
-
-	// call tc for inferred
-
-	// call nias for mapped
-
-	// call nias for gesdi
-
+	return otfResponse, nil
 }
 
 //
