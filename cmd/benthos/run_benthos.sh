@@ -4,8 +4,6 @@
 rm -r ./msgs
 mkdir ./msgs
 
-BENTHOS_HOST=localhost:34196
+benthos lint align_workflow.yaml
 
-benthos lint workflow.yaml
-
-benthos -c workflow.yaml
+clear && benthos -c align_workflow.yaml

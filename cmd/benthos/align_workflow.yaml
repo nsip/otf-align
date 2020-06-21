@@ -30,10 +30,11 @@ pipeline:
             - bloblang: original.score.type() != "null" # ignore students with null score
           premap:
             alignMethod: meta.alignMethod
+            alignCapability: meta.capability
             alignToken: original.score
           processors:
             - http:
-                parallel: true
+                parallel: false
                 request:
                   url: http://localhost:1324/align
                   headers:
@@ -42,6 +43,10 @@ pipeline:
           postmap:
             otf.method: alignMethod
             otf.token: alignToken
+            otf.alignments: alignments
+            otf.alignmentServiceID: alignServiceID
+            otf.alignmentServiceName: alignServiceName
+            otf.capability: alignCapability
 
 
       brightpath_map:
@@ -59,10 +64,11 @@ pipeline:
       lpofa_align:
           premap:
             alignMethod: meta.alignMethod
-            alignToken: original.object.definition.name.en-US
+            alignCapability: meta.capability
+            alignToken: original.object.definition.description.en-US
           processors:
             - http:
-                parallel: true
+                parallel: false 
                 request:
                   url: http://localhost:1324/align
                   headers:
@@ -71,6 +77,10 @@ pipeline:
           postmap:
             otf.method: alignMethod
             otf.token: alignToken
+            otf.alignments: alignments
+            otf.alignmentServiceID: alignServiceID
+            otf.alignmentServiceName: alignServiceName
+            otf.capability: alignCapability
 
       lpofa_map:
         dependencies:
@@ -86,10 +96,11 @@ pipeline:
       mathspathway_align:
           premap:
             alignMethod: meta.alignMethod
+            alignCapability: meta.capability
             alignToken: original.module_id
           processors:
             - http:
-                parallel: true
+                parallel: false
                 request:
                   url: http://localhost:1324/align
                   headers:
@@ -98,6 +109,10 @@ pipeline:
           postmap:
             otf.method: alignMethod
             otf.token: alignToken
+            otf.alignments: alignments
+            otf.alignmentServiceID: alignServiceID
+            otf.alignmentServiceName: alignServiceName
+            otf.capability: alignCapability
 
       mathspathway_map:
         dependencies:
@@ -113,10 +128,11 @@ pipeline:
       spa_align:
           premap:
             alignMethod: meta.alignMethod
+            alignCapability: meta.capability
             alignToken: original.TestCode
           processors:
             - http:
-                parallel: true
+                parallel: false
                 request:
                   url: http://localhost:1324/align
                   headers:
@@ -125,6 +141,10 @@ pipeline:
           postmap:
             otf.method: alignMethod
             otf.token: alignToken
+            otf.alignments: alignments
+            otf.alignmentServiceID: alignServiceID
+            otf.alignmentServiceName: alignServiceName
+            otf.capability: alignCapability
 
       spa_map:
         dependencies:
@@ -141,6 +161,7 @@ pipeline:
   - catch:
     - log:
         message: "Processing failed due to: ${!error()}"
+
 
 output:
   files:
