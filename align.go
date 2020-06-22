@@ -127,7 +127,7 @@ func (s *OtfAlignService) buildAlignHandler() echo.HandlerFunc {
 		case "inferred", "mapped", "prescribed":
 			headers := map[string]string{"Content-Type": "application/json"}
 			method := "POST"
-			requestJson := []byte(fmt.Sprintf(`{"area":"%s", "text":"%s"}`, ar.AlignCapability, stringToken))
+			requestJson := []byte(fmt.Sprintf(`{"area":"%s", "text":%q}`, ar.AlignCapability, stringToken))
 			body := bytes.NewReader(requestJson)
 			res, err := util.Fetch(method, tcURL, headers, body)
 			if err != nil {
