@@ -48,6 +48,39 @@ The *alignments* element contains an array of GESDI blocks containing the full r
 
 Note the *alignments* element is an array to accommodate the fact that some alignments may produce a many-to-one relationship between the input token and the
 
+All configuration options can be set on the command-line using flags, via envronment variables, or by using a configuration file.
+Configuration can use any or all of these methods in combination.
+For example options such as the address and hostname of the classifier server might best be accessed from environment variables, whilst the service name of the otf-align instance might be supplied in a json configuration file.
+
+Configuration flags are capitalised and prefixed with OTF_ALIGN_SRVC when supplied as environment variables; so flag --niasPort on the commnad-line becomes 
+
+```
+OTF_ALIGN_SRVC_NIASPORT=1323
+```
+
+when expressed as an environment variable and
+
+```
+{ "niasPort":1323 }
+```
+
+when set in a json configuration file.
+
+These are the configuration options:
+
+|Option name|Type|Required|Default|Description|
+|---|---|---|---|---|
+|config|string|no||configuration file name|
+|name|string|yes|auto-generated (hashid)|name of this instance of the service|
+|id|string|yes|auto-generated (nuid)|identifier for this service instance|  
+|host|string|yes|localhost|host address to run this service on|
+|port|int|yes|auto-generated|port to run the service on|
+|niasHost|string|yes|localhost|host of n3w service|
+|niasPort|int|yes|1323|port of the n3w service|
+|niasToken|string|yes|xxx.yyy|jwt token for accessing the n3w server|
+|tcHost|string|yes|localhost|host address for text classification service|
+|tcPort|int|yes|1576|port classifier service runs on|    
+
 # alignment methods
 otf-align is a facade service which will invoke further services in order to determine the alignment of a particular assessment result or observation.
 Three styles of alignment resolution are currently supported:
