@@ -141,6 +141,7 @@ func (s *OtfAlignService) buildAlignHandler() echo.HandlerFunc {
 			}
 		default:
 			_ = niasURL
+			return echo.NewHTTPError(http.StatusBadRequest, "alignMethod not supported")
 		}
 		alignResponse["alignMethod"] = ar.AlignMethod
 		alignResponse["alignToken"] = ar.AlignToken
