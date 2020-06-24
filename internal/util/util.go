@@ -91,6 +91,8 @@ func GenerateID() string {
 //
 func Fetch(method string, url string, header map[string]string, body io.Reader) ([]byte, error) {
 
+	// fmt.Printf("params:\n\n%s\n%s\n%v\n%v\n\n", method, url, header, body)
+
 	// Create request.
 	req, err := http.NewRequest(method, url, body)
 	if err != nil {

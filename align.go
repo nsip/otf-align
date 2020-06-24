@@ -106,6 +106,7 @@ func (s *OtfAlignService) buildAlignHandler() echo.HandlerFunc {
 	niasURL := fmt.Sprintf("http://%s:%d/graphql", s.niasHost, s.niasPort) // n3w address
 	sName := s.serviceName
 	sID := s.serviceID
+	tclkpBaseURL := fmt.Sprintf("http://%s:%d/lookup", s.tcHost, s.tcPort)
 
 	return func(c echo.Context) error {
 		// check required params are in input
@@ -123,9 +124,10 @@ func (s *OtfAlignService) buildAlignHandler() echo.HandlerFunc {
 		}
 
 		alignResponse := map[string]interface{}{}
+		headers := map[string]string{"Content-Type": "application/json"}
+		// call the relevant services for the align method
 		switch ar.AlignMethod {
-		case "inferred", "mapped", "prescribed":
-			headers := map[string]string{"Content-Type": "application/json"}
+		case "inferred", "mapped":
 			method := "POST"
 			requestJson := []byte(fmt.Sprintf(`{"area":"%s", "text":%q}`, ar.AlignCapability, stringToken))
 			body := bytes.NewReader(requestJson)
@@ -135,6 +137,19 @@ func (s *OtfAlignService) buildAlignHandler() echo.HandlerFunc {
 				return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 			}
 			alignResponse, err = reformatClassifierResponse(res)
+			if err != nil {
+				fmt.Printf("\treformat error:\n%s\n", err)
+				return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+			}
+		case "prescribed":
+			method := "GET"
+			url := fmt.Sprintf(`%s?search=%s`, tclkpBaseURL, stringToken)
+			res, err := util.Fetch(method, url, headers, nil)
+			if err != nil {
+				fmt.Printf("\tfetch error:\n%s\n", err)
+				return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+			}
+			alignResponse, err = reformatClassifierLookupResponse(res)
 			if err != nil {
 				fmt.Printf("\treformat error:\n%s\n", err)
 				return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
@@ -208,6 +223,38 @@ func reformatClassifierResponse(cr []byte) (map[string]interface{}, error) {
 	}
 
 	return otfResponse, nil
+}
+
+//
+// create the simplified return structure
+// cr: payload returned by otf-classifier as bytes
+// returns a map[string]interface{} to be converted to json
+// on return to sender
+//
+func reformatClassifierLookupResponse(cr []byte) (map[string]interface{}, error) {
+
+	var clResp []map[string]interface{}
+	err := json.Unmarshal(cr, &clResp)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to unmarshal response from classifier lookup")
+	}
+
+	// convert paths array into object
+	alignments := []map[string]interface{}{}
+	alignment := map[string]interface{}{}
+	for _, path := range clResp {
+		p := path
+		key := strcase.ToLowerCamel(p["Key"].(string)) // ensure keys work as json keys
+		alignment[key] = p["Val"]
+	}
+	alignments = append(alignments, alignment)
+
+	otfResponse := map[string]interface{}{
+		"alignments": alignments,
+	}
+
+	return otfResponse, nil
+
 }
 
 //
