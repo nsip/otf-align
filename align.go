@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/iancoleman/strcase"
-	"github.com/labstack/echo"
+	"github.com/labstack/echo/v4"
 	"github.com/labstack/gommon/log"
 	"github.com/nsip/otf-align/internal/util"
 	"github.com/pkg/errors"
