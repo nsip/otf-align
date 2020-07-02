@@ -86,6 +86,9 @@ func New(options ...Option) (*OtfAlignService, error) {
 	srvc.e.Logger.SetLevel(log.INFO)
 
 	// add jaeger tracer into middleware
+	os.Setenv("JAEGER_SERVICE_NAME", srvc.serviceName)
+	os.Setenv("JAEGER_SAMPLER_TYPE", "const")
+	os.Setenv("JAEGER_SAMPLER_PARAM", "1")
 	srvc.c = jaegertracing.New(srvc.e, nil)
 
 	// add pingable method to know we're up
