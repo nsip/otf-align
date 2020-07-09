@@ -1,8 +1,6 @@
 package otfalign
 
 import (
-	"errors"
-
 	"github.com/nsip/otf-align/internal/util"
 )
 
@@ -118,8 +116,8 @@ func NiasPort(port int) Option {
 }
 
 //
-// set the hostname/address of the nias3 web server
-// defaults to loacalhost if no host given
+// set the access token of the nias3 web server
+// defaults to demo otf token if not given
 //
 func NiasToken(tkn string) Option {
 	return func(s *OtfAlignService) error {
@@ -127,7 +125,8 @@ func NiasToken(tkn string) Option {
 			s.niasToken = tkn
 			return nil
 		}
-		return errors.New("must have access token for n3w")
+		s.niasToken = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJkZW1vIiwiY25hbWUiOiJhbGlnbm1lbnRNYXBzIiwidW5hbWUiOiJuc2lwT3RmIn0.Hxepr1xqGpUC6amoO8eTlszM-M2sakLhtwBYHSi-Cig"
+		return nil
 	}
 }
 
