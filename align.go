@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/iancoleman/strcase"
@@ -14,6 +15,7 @@ import (
 	"github.com/labstack/gommon/log"
 	"github.com/nsip/otf-align/internal/util"
 	"github.com/pkg/errors"
+	"github.com/tidwall/gjson"
 )
 
 type OtfAlignService struct {
@@ -86,7 +88,6 @@ func New(options ...Option) (*OtfAlignService, error) {
 	})
 	// add align method
 	srvc.e.POST("/align", srvc.buildAlignHandler())
-	// srvc.e.POST("/align", srvc.align)
 
 	return &srvc, nil
 }
@@ -102,8 +103,9 @@ func New(options ...Option) (*OtfAlignService, error) {
 //
 func (s *OtfAlignService) buildAlignHandler() echo.HandlerFunc {
 
-	tcURL := fmt.Sprintf("http://%s:%d/align", s.tcHost, s.tcPort)         // text classifier address
-	niasURL := fmt.Sprintf("http://%s:%d/graphql", s.niasHost, s.niasPort) // n3w address
+	tcURL := fmt.Sprintf("http://%s:%d/align", s.tcHost, s.tcPort)            // text classifier address
+	niasURL := fmt.Sprintf("http://%s:%d/n3/graphql", s.niasHost, s.niasPort) // n3w address
+	n3Token := s.niasToken
 	sName := s.serviceName
 	sID := s.serviceID
 	tclkpBaseURL := fmt.Sprintf("http://%s:%d/lookup", s.tcHost, s.tcPort)
@@ -123,50 +125,66 @@ func (s *OtfAlignService) buildAlignHandler() echo.HandlerFunc {
 			return echo.NewHTTPError(http.StatusBadRequest, "must supply values for alignMethod, alignToken and alignCapability")
 		}
 
-		alignResponse := map[string]interface{}{}
-		headers := map[string]string{"Content-Type": "application/json"}
+		// set default request headers
+		headers := map[string]string{
+			"Content-Type": "application/json",
+			"Accept":       "application/json",
+			"Connection":   "keep-alive",
+			"DNT":          "1",
+		}
 		// call the relevant services for the align method
+		nlps := []map[string]interface{}{}
 		switch ar.AlignMethod {
-		case "inferred", "mapped":
-			method := "POST"
-			requestJson := []byte(fmt.Sprintf(`{"area":"%s", "text":%q}`, ar.AlignCapability, stringToken))
-			body := bytes.NewReader(requestJson)
-			res, err := util.Fetch(method, tcURL, headers, body)
+		case "mapped":
+			headers["Authorization"] = n3Token // add n3 auth token
+			// find any nlp links with query to n3w
+			nlpRefs, err := mappedAlignment(stringToken, niasURL, headers)
 			if err != nil {
-				fmt.Printf("\tfetch error:\n%s\n", err)
 				return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 			}
-			alignResponse, err = reformatClassifierResponse(res)
+			// for links returned now lookup full gesdi blocks
+			for _, ref := range nlpRefs {
+				results, err := prescribedAlignment(ref, tclkpBaseURL, headers)
+				if err != nil {
+					return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+				}
+				nlps = append(nlps, results...)
+			}
+			// this block creates a failsafe, if no mapped results were found
+			// forces a fallthrough to perform an inferred lookup
+			if len(nlpRefs) != 0 {
+				break
+			}
+			fmt.Println("no mapped results found, falling back to inference")
+			fallthrough
+		case "inferred":
+			results, err := inferredAlignment(stringToken, ar.AlignCapability, tcURL, headers)
 			if err != nil {
-				fmt.Printf("\treformat error:\n%s\n", err)
 				return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 			}
+			nlps = append(nlps, results...)
 		case "prescribed":
-			method := "GET"
-			url := fmt.Sprintf(`%s?search=%s`, tclkpBaseURL, stringToken)
-			res, err := util.Fetch(method, url, headers, nil)
+			results, err := prescribedAlignment(stringToken, tclkpBaseURL, headers)
 			if err != nil {
-				fmt.Printf("\tfetch error:\n%s\n", err)
 				return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 			}
-			alignResponse, err = reformatClassifierLookupResponse(res)
-			if err != nil {
-				fmt.Printf("\treformat error:\n%s\n", err)
-				return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
-			}
+			nlps = append(nlps, results...)
 		default:
 			_ = niasURL
 			return echo.NewHTTPError(http.StatusBadRequest, "alignMethod not supported")
 		}
-		alignResponse["alignMethod"] = ar.AlignMethod
-		alignResponse["alignToken"] = ar.AlignToken
-		alignResponse["alignCapability"] = ar.AlignCapability
-		alignResponse["alignServiceID"] = sID
-		alignResponse["alignServiceName"] = sName
+		// put the whole response together
+		alignResponse := map[string]interface{}{
+			"alignments":       nlps,
+			"alignMethod":      ar.AlignMethod,
+			"alignToken":       ar.AlignToken,
+			"alignCapability":  ar.AlignCapability,
+			"alignServiceID":   sID,
+			"alignServiceName": sName,
+		}
 
 		return c.JSON(http.StatusOK, alignResponse)
 
-		return nil
 	}
 }
 
@@ -188,12 +206,159 @@ func (s *OtfAlignService) Start() {
 }
 
 //
+// calls the n3w server to find linked nlps
+//
+// token: the search token
+// url: the url of the n3w server
+// headers: http headers to support the request
+//
+// returns array of aligned nlp references
+//
+func mappedAlignment(token, url string, headers map[string]string) ([]string, error) {
+
+	method := "POST"
+	body := bytes.NewBuffer(buildQuery(token))
+
+	// call the n3 service to find any nlp matches
+	res, err := util.Fetch(method, url, headers, body)
+	if err != nil {
+		return nil, err
+	}
+	return extractN3AlignmentMatches(res), nil
+
+}
+
+//
+// finds the aligned nlp identifiers from the results of an
+// n3 (mapped) query.
+//
+// returns an arrray of identifiers, which can be empty
+// if no matches were found
+//
+func extractN3AlignmentMatches(n3response []byte) []string {
+
+	matches := make([]string, 0)
+
+	result := gjson.GetBytes(n3response, "data.q.OtfNLPLink.#.nlpReference")
+	for _, ref := range result.Array() {
+		matches = append(matches, ref.String())
+	}
+
+	return matches
+
+}
+
+//
+// calls the text-classfication server to find the
+// nlp gesdi block for the specified token
+//
+// token: the search token
+// url: the url of the text-class server
+// headers: http headers to support the request
+//
+// returns array of aligned nlp objects (map[string]interface{} for conversion to json)
+//
+func prescribedAlignment(token, url string, headers map[string]string) ([]map[string]interface{}, error) {
+
+	method := "GET"
+	tcurl := fmt.Sprintf(`%s?search=%s`, url, token)
+	// call the text-classfier lookup service
+	res, err := util.Fetch(method, tcurl, headers, nil)
+	if err != nil {
+		return nil, err
+	}
+	return reformatClassifierLookupResponse(res)
+
+}
+
+//
+// calls the text-classfication server to find the
+// nlp gesdi block based on searching for best match to the
+// supplied text (typically a phrase or description)
+//
+// token: the search token
+// capability: text-class needs broad area (literacy/numeracy)
+// url: the url of the text-class server
+// headers: http headers to support the request
+//
+// returns array of aligned nlp objects (map[string]interface{} for conversion to json)
+//
+
+func inferredAlignment(token, capability, url string, headers map[string]string) ([]map[string]interface{}, error) {
+
+	method := "POST"
+	requestJson := []byte(fmt.Sprintf(`{"area":"%s", "text":%q}`, capability, token))
+	body := bytes.NewReader(requestJson)
+	// call the text classifier service
+	res, err := util.Fetch(method, url, headers, body)
+	if err != nil {
+		return nil, err
+	}
+	return reformatClassifierResponse(res)
+
+}
+
+//
+// helper type to capture
+// graphql queries for sending to
+// the n3 service
+//
+type GQLQuery struct {
+	Query     string
+	Variables map[string]interface{}
+}
+
+//
+// constructs the graphql query for
+// mapped alignment requests
+// token: the value to start searching from in n3
+//
+// returns: the byte array of the whole query request as json
+//
+func buildQuery(token string) []byte {
+
+	// the data we want returned
+	q := `query nlpLinksQuery($qspec: QueryInput!) { 
+		q(qspec: $qspec) { 
+			OtfNLPLink { 
+				linkReference 
+				nlpNodeId 
+				nlpReference 
+				nlpLinkVersion 
+			} 
+			OtfProviderItem { 
+				providerName 
+				externalReference 
+				itemVersion
+			}  
+		}
+	}`
+	// the parameters of the query, defines staet-point and traversal in n3
+	v := map[string]interface{}{
+		"qspec": map[string]interface{}{
+			"queryType":  "traversalWithValue",
+			"queryValue": token,
+			"traversal":  []string{"OtfProviderItem", "OtfNLPLink"},
+		},
+	}
+
+	gql := GQLQuery{Query: q, Variables: v}
+	jsonStr, err := json.Marshal(gql)
+	if err != nil {
+		fmt.Println("gql query json marshal error: ", err)
+	}
+
+	return jsonStr
+}
+
+//
 // create the simplified return structure
 // cr: payload returned by otf-classifier as bytes
-// returns a map[string]interface{} to be converted to json
-// on return to sender
 //
-func reformatClassifierResponse(cr []byte) (map[string]interface{}, error) {
+// returns an array of nlp objects ([]map[string]interface{})
+// to be converted to json
+//
+func reformatClassifierResponse(cr []byte) ([]map[string]interface{}, error) {
 
 	// // return just first entry - highest match
 	var clResp []map[string]interface{}
@@ -218,20 +383,17 @@ func reformatClassifierResponse(cr []byte) (map[string]interface{}, error) {
 	}
 	alignments = append(alignments, alignment)
 
-	otfResponse := map[string]interface{}{
-		"alignments": alignments,
-	}
-
-	return otfResponse, nil
+	return alignments, nil
 }
 
 //
 // create the simplified return structure
 // cr: payload returned by otf-classifier as bytes
-// returns a map[string]interface{} to be converted to json
-// on return to sender
 //
-func reformatClassifierLookupResponse(cr []byte) (map[string]interface{}, error) {
+// returns an array of nlp objects ([]map[string]interface{})
+// to be converted to json
+//
+func reformatClassifierLookupResponse(cr []byte) ([]map[string]interface{}, error) {
 
 	var clResp []map[string]interface{}
 	err := json.Unmarshal(cr, &clResp)
@@ -249,11 +411,7 @@ func reformatClassifierLookupResponse(cr []byte) (map[string]interface{}, error)
 	}
 	alignments = append(alignments, alignment)
 
-	otfResponse := map[string]interface{}{
-		"alignments": alignments,
-	}
-
-	return otfResponse, nil
+	return alignments, nil
 
 }
 
@@ -291,7 +449,10 @@ func (s *OtfAlignService) printID() {
 func (s *OtfAlignService) printNiasConfig() {
 	fmt.Println("\tnias n3w host:\t\t", s.niasHost)
 	fmt.Println("\tnias n3w port:\t\t", s.niasPort)
-	fmt.Println("\tnias token:\t\t", s.niasToken)
+	// display only a partial token
+	tokenParts := strings.Split(s.niasToken, ".")
+	partialToken := tokenParts[len(tokenParts)-1]
+	fmt.Println("\tn3w token(partial):\t", partialToken)
 }
 
 func (s *OtfAlignService) printClassifierConfig() {

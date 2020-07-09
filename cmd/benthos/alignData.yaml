@@ -1,3 +1,8 @@
+http:
+  address: 0.0.0.0:34195
+  read_timeout: 5s
+  root_path: /benthos
+  debug_endpoints: false
 input:
   type: nats_stream
   nats_stream:
@@ -25,13 +30,24 @@ pipeline:
   processors:
   - process_dag:
 
+      brightpath_composite_token:
+          conditions:
+            - bloblang: original.score.type() != "null" # ignore students with null score
+          premap: {}
+          processors:
+            - bloblang: |
+                root = this
+                meta.compToken = "%s %v".format(original.test.scale, original.score)
+          postmap: 
+            otf.compToken: meta.compToken
+
       brightpath_align:
           conditions:
             - bloblang: original.score.type() != "null" # ignore students with null score
           premap:
             alignMethod: meta.alignMethod
             alignCapability: meta.capability
-            alignToken: original.score
+            alignToken: otf.compToken
           processors:
             - http:
                 parallel: false

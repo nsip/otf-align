@@ -21,7 +21,7 @@ func main() {
 		servicePort = fs.Int("port", 0, "port to run service on, if not specified will assign an available port automatically")
 		niasHost    = fs.String("niasHost", "localhost", "host name/address of nias3 (n3w) web service")
 		niasPort    = fs.Int("niasPort", 1323, "port that nias3 web (n3w) service is running on")
-		niasToken   = fs.String("niasToken", "xxx.yyy", "access token for nias server when making queries")
+		niasToken   = fs.String("niasToken", "", "access token for nias server when making queries")
 		tcHost      = fs.String("tcHost", "localhost", "host name/address of text classification server")
 		tcPort      = fs.Int("tcPort", 1576, "port that text classification server is running on")
 	)
