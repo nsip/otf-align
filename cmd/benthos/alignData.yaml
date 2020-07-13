@@ -180,8 +180,18 @@ pipeline:
 
 
 output:
-  files:
-    path: ./msgs/${!count("files")}-${!timestamp_unix_nano()}.json
+  broker:
+    pattern: fan_out
+    outputs:
+      - files:
+          path: /Users/mattfarmer/otfdata/audit/align/${!count("files")}-${!timestamp_unix_nano()}.json
+      - nats_stream:
+          urls:
+            - nats://127.0.0.1:4222
+          cluster_id: test-cluster
+          subject: otf.aligned
+          client_id: otf_aligned_publish
+      # max_in_flight: 1
   processors:
     # don't save any files that did not get processed by the aligner
   - bloblang: |
