@@ -1,3 +1,11 @@
+# 
+# takes assessment results published by a reader and passes
+# them through the alignment to NNLP services
+# 
+# writes resulting files both to audit output (folder)
+# and on as messages to the next nats streaming q. for 
+# pickup by the levelling workflow
+# 
 http:
   address: 0.0.0.0:34195
   read_timeout: 5s
@@ -24,7 +32,7 @@ input:
     subject: otf.ingest
     unsubscribe_on_close: false
     urls:
-      - nats://127.0.0.1:4222
+      - nats://${NATS_HOST}:4222
 
 pipeline:
   processors:
@@ -52,22 +60,22 @@ pipeline:
             - http:
                 parallel: false
                 request:
-                  url: http://localhost:1324/align
+                  url: http://${ALIGNER_HOST}:1324/align
                   headers:
                     Content-Type: application/json
                   verb: POST
           postmap:
-            otf.method: alignMethod
-            otf.token: alignToken
-            otf.alignments: alignments
-            otf.alignmentServiceID: alignServiceID
-            otf.alignmentServiceName: alignServiceName
-            otf.capability: alignCapability
+            otf.align.method: alignMethod
+            otf.align.token: alignToken
+            otf.align.alignments: alignments
+            otf.align.alignmentServiceID: alignServiceID
+            otf.align.alignmentServiceName: alignServiceName
+            otf.align.capability: alignCapability
 
 
       brightpath_map:
         dependencies:
-          - otf.token # ensures align service has been called first
+          - otf.align.token # ensures align service has been called first
         conditions:
           - bloblang: this.meta.providerName == "BrightPath" # ensure is a brightpath record
         processors:
@@ -86,21 +94,21 @@ pipeline:
             - http:
                 parallel: false 
                 request:
-                  url: http://localhost:1324/align
+                  url: http://${ALIGNER_HOST}:1324/align
                   headers:
                     Content-Type: application/json
                   verb: POST
           postmap:
-            otf.method: alignMethod
-            otf.token: alignToken
-            otf.alignments: alignments
-            otf.alignmentServiceID: alignServiceID
-            otf.alignmentServiceName: alignServiceName
-            otf.capability: alignCapability
+            otf.align.method: alignMethod
+            otf.align.token: alignToken
+            otf.align.alignments: alignments
+            otf.align.alignmentServiceID: alignServiceID
+            otf.align.alignmentServiceName: alignServiceName
+            otf.align.capability: alignCapability
 
       lpofa_map:
         dependencies:
-          - otf.token # ensures align service has been called first
+          - otf.align.token # ensures align service has been called first
         conditions:
           - bloblang: this.exists("original.actor.mbox") # xapi files only
         processors:
@@ -118,28 +126,28 @@ pipeline:
             - http:
                 parallel: false
                 request:
-                  url: http://localhost:1324/align
+                  url: http://${ALIGNER_HOST}:1324/align
                   headers:
                     Content-Type: application/json
                   verb: POST
           postmap:
-            otf.method: alignMethod
-            otf.token: alignToken
-            otf.alignments: alignments
-            otf.alignmentServiceID: alignServiceID
-            otf.alignmentServiceName: alignServiceName
-            otf.capability: alignCapability
+            otf.align.method: alignMethod
+            otf.align.token: alignToken
+            otf.align.alignments: alignments
+            otf.align.alignmentServiceID: alignServiceID
+            otf.align.alignmentServiceName: alignServiceName
+            otf.align.capability: alignCapability
 
       mathspathway_map:
         dependencies:
-          - otf.token # ensures align service has been called first
+          - otf.align.token # ensures align service has been called first
         conditions:
           - bloblang: this.meta.providerName == "MathsPathway" # ensure is a mathspathway record
         processors:
           - bloblang: |
               root = this
               otf.id.studentID = original.student_id
-              # otf.id.studentFullName = "must be externally resolved"
+              otf.id.studentFullName = "not provided"
 
       spa_align:
           premap:
@@ -150,21 +158,21 @@ pipeline:
             - http:
                 parallel: false
                 request:
-                  url: http://localhost:1324/align
+                  url: http://${ALIGNER_HOST}:1324/align
                   headers:
                     Content-Type: application/json
                   verb: POST
           postmap:
-            otf.method: alignMethod
-            otf.token: alignToken
-            otf.alignments: alignments
-            otf.alignmentServiceID: alignServiceID
-            otf.alignmentServiceName: alignServiceName
-            otf.capability: alignCapability
+            otf.align.method: alignMethod
+            otf.align.token: alignToken
+            otf.align.alignments: alignments
+            otf.align.alignmentServiceID: alignServiceID
+            otf.align.alignmentServiceName: alignServiceName
+            otf.align.capability: alignCapability
 
       spa_map:
         dependencies:
-          - otf.token # ensures align service has been called first
+          - otf.align.token # ensures align service has been called first
         conditions:
           - bloblang: this.meta.providerName == "SPA" # ensure is a sreams record
         processors:
@@ -180,12 +188,22 @@ pipeline:
 
 
 output:
-  files:
-    path: ./msgs/${!count("files")}-${!timestamp_unix_nano()}.json
+  broker:
+    pattern: fan_out
+    outputs:
+      - files:
+          path: ${PDM_ROOT}/audit/align/${!count("files")}-${!timestamp_unix_nano()}.json
+      - nats_stream:
+          urls:
+            - nats://${NATS_HOST}:4222
+          cluster_id: test-cluster
+          subject: otf.aligned
+          client_id: otf_aligned_publish
+      # max_in_flight: 1
   processors:
     # don't save any files that did not get processed by the aligner
   - bloblang: |
-      root = if !this.exists("otf.token") {
+      root = if !this.exists("otf.align.token") {
         deleted()
       }    
 
