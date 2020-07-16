@@ -1,3 +1,11 @@
+# 
+# takes assessment results published by a reader and passes
+# them through the alignment to NNLP services
+# 
+# writes resulting files both to audit output (folder)
+# and on as messages to the next nats streaming q. for 
+# pickup by the levelling workflow
+# 
 http:
   address: 0.0.0.0:34195
   read_timeout: 5s
@@ -24,7 +32,7 @@ input:
     subject: otf.ingest
     unsubscribe_on_close: false
     urls:
-      - nats://127.0.0.1:4222
+      - nats://${NATS_HOST}:4222
 
 pipeline:
   processors:
@@ -52,7 +60,7 @@ pipeline:
             - http:
                 parallel: false
                 request:
-                  url: http://localhost:1324/align
+                  url: http://${ALIGNER_HOST}:1324/align
                   headers:
                     Content-Type: application/json
                   verb: POST
@@ -86,7 +94,7 @@ pipeline:
             - http:
                 parallel: false 
                 request:
-                  url: http://localhost:1324/align
+                  url: http://${ALIGNER_HOST}:1324/align
                   headers:
                     Content-Type: application/json
                   verb: POST
@@ -118,7 +126,7 @@ pipeline:
             - http:
                 parallel: false
                 request:
-                  url: http://localhost:1324/align
+                  url: http://${ALIGNER_HOST}:1324/align
                   headers:
                     Content-Type: application/json
                   verb: POST
@@ -150,7 +158,7 @@ pipeline:
             - http:
                 parallel: false
                 request:
-                  url: http://localhost:1324/align
+                  url: http://${ALIGNER_HOST}:1324/align
                   headers:
                     Content-Type: application/json
                   verb: POST
@@ -184,10 +192,10 @@ output:
     pattern: fan_out
     outputs:
       - files:
-          path: /Users/mattfarmer/otfdata/audit/align/${!count("files")}-${!timestamp_unix_nano()}.json
+          path: ${PDM_ROOT}/audit/align/${!count("files")}-${!timestamp_unix_nano()}.json
       - nats_stream:
           urls:
-            - nats://127.0.0.1:4222
+            - nats://${NATS_HOST}:4222
           cluster_id: test-cluster
           subject: otf.aligned
           client_id: otf_aligned_publish
