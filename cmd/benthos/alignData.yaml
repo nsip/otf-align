@@ -65,17 +65,17 @@ pipeline:
                     Content-Type: application/json
                   verb: POST
           postmap:
-            otf.method: alignMethod
-            otf.token: alignToken
-            otf.alignments: alignments
-            otf.alignmentServiceID: alignServiceID
-            otf.alignmentServiceName: alignServiceName
-            otf.capability: alignCapability
+            otf.align.method: alignMethod
+            otf.align.token: alignToken
+            otf.align.alignments: alignments
+            otf.align.alignmentServiceID: alignServiceID
+            otf.align.alignmentServiceName: alignServiceName
+            otf.align.capability: alignCapability
 
 
       brightpath_map:
         dependencies:
-          - otf.token # ensures align service has been called first
+          - otf.align.token # ensures align service has been called first
         conditions:
           - bloblang: this.meta.providerName == "BrightPath" # ensure is a brightpath record
         processors:
@@ -99,16 +99,16 @@ pipeline:
                     Content-Type: application/json
                   verb: POST
           postmap:
-            otf.method: alignMethod
-            otf.token: alignToken
-            otf.alignments: alignments
-            otf.alignmentServiceID: alignServiceID
-            otf.alignmentServiceName: alignServiceName
-            otf.capability: alignCapability
+            otf.align.method: alignMethod
+            otf.align.token: alignToken
+            otf.align.alignments: alignments
+            otf.align.alignmentServiceID: alignServiceID
+            otf.align.alignmentServiceName: alignServiceName
+            otf.align.capability: alignCapability
 
       lpofa_map:
         dependencies:
-          - otf.token # ensures align service has been called first
+          - otf.align.token # ensures align service has been called first
         conditions:
           - bloblang: this.exists("original.actor.mbox") # xapi files only
         processors:
@@ -131,23 +131,23 @@ pipeline:
                     Content-Type: application/json
                   verb: POST
           postmap:
-            otf.method: alignMethod
-            otf.token: alignToken
-            otf.alignments: alignments
-            otf.alignmentServiceID: alignServiceID
-            otf.alignmentServiceName: alignServiceName
-            otf.capability: alignCapability
+            otf.align.method: alignMethod
+            otf.align.token: alignToken
+            otf.align.alignments: alignments
+            otf.align.alignmentServiceID: alignServiceID
+            otf.align.alignmentServiceName: alignServiceName
+            otf.align.capability: alignCapability
 
       mathspathway_map:
         dependencies:
-          - otf.token # ensures align service has been called first
+          - otf.align.token # ensures align service has been called first
         conditions:
           - bloblang: this.meta.providerName == "MathsPathway" # ensure is a mathspathway record
         processors:
           - bloblang: |
               root = this
               otf.id.studentID = original.student_id
-              # otf.id.studentFullName = "must be externally resolved"
+              otf.id.studentFullName = "not provided"
 
       spa_align:
           premap:
@@ -163,16 +163,16 @@ pipeline:
                     Content-Type: application/json
                   verb: POST
           postmap:
-            otf.method: alignMethod
-            otf.token: alignToken
-            otf.alignments: alignments
-            otf.alignmentServiceID: alignServiceID
-            otf.alignmentServiceName: alignServiceName
-            otf.capability: alignCapability
+            otf.align.method: alignMethod
+            otf.align.token: alignToken
+            otf.align.alignments: alignments
+            otf.align.alignmentServiceID: alignServiceID
+            otf.align.alignmentServiceName: alignServiceName
+            otf.align.capability: alignCapability
 
       spa_map:
         dependencies:
-          - otf.token # ensures align service has been called first
+          - otf.align.token # ensures align service has been called first
         conditions:
           - bloblang: this.meta.providerName == "SPA" # ensure is a sreams record
         processors:
@@ -203,7 +203,7 @@ output:
   processors:
     # don't save any files that did not get processed by the aligner
   - bloblang: |
-      root = if !this.exists("otf.token") {
+      root = if !this.exists("otf.align.token") {
         deleted()
       }    
 
