@@ -1,22 +1,13 @@
 ###########################
 # INSTRUCTIONS
 ############################
-# BUILD: docker build -t nsip/example_golang .
-# TEST: docker run -it -p3000:3000 nsip/example_golang .
-# RUN: docker run -d -p3000:3000 nsip/example_golang
+# BUILD: docker build -t nsip/otf-align .
+# TEST: docker run -it -p3000:3000 nsip/otf-align .
+# RUN: docker run -d -p3000:3000 nsip/otf-align
 #
 ###########################
-# EXAMPLE DOCUMENTATION
+# DOCUMENTATION
 ############################
-#TODO
-# To this example:
-#   * Client and Server - both using SSL (server use host certificates)
-# To write:
-#   * Why multi layers
-#   * How the CA certificates - link to the url I find this info
-#   * Examples of where this has been used (e.g. sif2json)
-#   * Link to the hub.docker official golang docs
-#   * Conventions for micro web services.
 
 ###########################
 # STEP 0 Get them certificates
@@ -31,6 +22,7 @@ FROM golang:1.14-stretch as builder
 RUN mkdir -p /build
 WORKDIR /build
 COPY . .
+WORKDIR cmd/otf-align
 RUN GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o /go/bin/server
 
 ############################
