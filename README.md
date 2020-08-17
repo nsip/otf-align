@@ -46,7 +46,7 @@ The response echoes the input parameters for completeness, and identifies the se
 
 The *alignments* element contains an array of GESDI blocks containing the full resolution of the aligned item.
 
-Note the *alignments* element is an array to accommodate the fact that some alignments may produce a many-to-one relationship between the input token and the
+Note the *alignments* element is an array to accommodate the fact that some alignments may produce a many-to-one relationship between the input token and the response.
 
 All configuration options can be set on the command-line using flags, via envronment variables, or by using a configuration file.
 Configuration can use any or all of these methods in combination.
@@ -77,7 +77,7 @@ These are the configuration options:
 |port|int|yes|auto-generated|port to run the service on|
 |niasHost|string|yes|localhost|host of n3w service|
 |niasPort|int|yes|1323|port of the n3w service|
-|niasToken|string|yes|a demo|jwt token for accessing the n3w server|
+|niasToken|string|yes|a demo token|jwt token for accessing the n3w server|
 |tcHost|string|yes|localhost|host address for text classification service|
 |tcPort|int|yes|1576|port classifier service runs on|    
 
@@ -98,7 +98,7 @@ Three styles of alignment resolution are currently supported:
 # pre-requisites
 The otf-align service requires supporting services to be available:
 - otf-classifier, provides classification engine and NLP lookup service
-    + binary can be created from http://github.com/nsip/otf-calssifier
+    + binary can be created from http://github.com/nsip/otf-classifier
 - n3w, provides the lookup graphs for mapped alignments
     + binary can be created from http://github.com/nsip/n3-web
 - benthos, workflow engine installed and available
