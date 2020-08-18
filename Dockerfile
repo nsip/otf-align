@@ -1,9 +1,9 @@
 ###########################
 # INSTRUCTIONS
 ############################
-# BUILD: docker build -t nsip/otf-align .
-# TEST: docker run -it -p3000:3000 nsip/otf-align .
-# RUN: docker run -d -p3000:3000 nsip/otf-align
+# BUILD: docker build -t nsip/otf-align:develop .
+# TEST: docker run -it -p3000:3000 nsip/otf-align:develop .
+# RUN: docker run -d -p3000:3000 nsip/otf-align:develop
 #
 ###########################
 # DOCUMENTATION
