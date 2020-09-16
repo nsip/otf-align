@@ -3,8 +3,8 @@
 ############################
 # BUILD
 #	docker build -t nsip/otf-align:latest -t nsip/otf-align:v0.1.0 .
-# TEST: docker run -it -v $PWD/test/data:/data -v $PWD/test/config.json:/config.json nsip/otf-align:develop .
-# RUN: docker run -d nsip/otf-align:develop
+# TEST: docker run -it -v $PWD/test/data:/data -v $PWD/test/config.json:/config.json nsip/otf-align:latest .
+# RUN: docker run -d nsip/otf-align:latest
 #
 # PUSH
 #	Public:

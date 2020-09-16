@@ -210,6 +210,7 @@ func (s *OtfAlignService) Start() {
 	address := fmt.Sprintf(":%d", s.servicePort)
 	go func(addr string) {
 		if err := s.e.Start(addr); err != nil {
+			s.e.Logger.Info("address", addr)
 			s.e.Logger.Info("error starting server: ", err, ", shutting down...")
 			// attempt clean shutdown by raising sig int
 			p, _ := os.FindProcess(os.Getpid())
