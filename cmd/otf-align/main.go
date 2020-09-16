@@ -29,7 +29,7 @@ func main() {
 	ff.Parse(fs, os.Args[1:],
 		ff.WithConfigFileFlag("config"),
 		ff.WithConfigFileParser(ff.JSONParser),
-		ff.WithEnvVarPrefix("OTF_ALIGN_SRVC"),
+		ff.WithEnvVarNoPrefix(),
 	)
 
 	opts := []otfal.Option{
