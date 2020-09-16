@@ -204,7 +204,10 @@ func (s *OtfAlignService) buildAlignHandler() echo.HandlerFunc {
 //
 func (s *OtfAlignService) Start() {
 
-	address := fmt.Sprintf("%s:%d", s.serviceHost, s.servicePort)
+	// XXX: I have remove host, by having localhost here, you can not connect external,
+	// And each service runs on its own box. Could have tired 0.0.0.0 
+	// address := fmt.Sprintf("%s:%d", s.serviceHost, s.servicePort)
+	address := fmt.Sprintf(":%d", s.servicePort)
 	go func(addr string) {
 		if err := s.e.Start(addr); err != nil {
 			s.e.Logger.Info("error starting server: ", err, ", shutting down...")

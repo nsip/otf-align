@@ -12,11 +12,10 @@ require (
 	github.com/peterbourgon/ff v1.7.0
 	github.com/pkg/errors v0.9.1
 	github.com/speps/go-hashids v2.0.0+incompatible
+	github.com/tidwall/gjson v1.6.0
+	github.com/tidwall/sjson v1.1.1
 	github.com/valyala/fasttemplate v1.1.1 // indirect
 	golang.org/x/net v0.0.0-20200625001655-4c5254603344 // indirect
 	golang.org/x/sys v0.0.0-20200625212154-ddb9806d33ae // indirect
 	golang.org/x/text v0.3.3 // indirect
-	github.com/tidwall/gjson v1.6.0
-	github.com/tidwall/sjson v1.1.1
-	golang.org/x/crypto v0.0.0-20200604202706-70a84ac30bf9 // indirect
 )
