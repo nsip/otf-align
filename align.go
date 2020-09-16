@@ -5,12 +5,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/iancoleman/strcase"
+	"github.com/labstack/echo-contrib/jaegertracing"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/gommon/log"
 	"github.com/nsip/otf-align/internal/util"
@@ -21,6 +23,8 @@ import (
 type OtfAlignService struct {
 	// embedded web server to handle alignment requests
 	e *echo.Echo
+	// closer for echo jaegertracing middleware
+	c io.Closer
 	// the unique name of this service when running multiple instances
 	serviceName string
 	// the unique id of this service when running multiple instances
@@ -82,6 +86,13 @@ func New(options ...Option) (*OtfAlignService, error) {
 
 	srvc.e = echo.New()
 	srvc.e.Logger.SetLevel(log.INFO)
+
+	// add jaeger tracer into middleware
+	os.Setenv("JAEGER_SERVICE_NAME", srvc.serviceName)
+	os.Setenv("JAEGER_SAMPLER_TYPE", "const")
+	os.Setenv("JAEGER_SAMPLER_PARAM", "1")
+	srvc.c = jaegertracing.New(srvc.e, nil)
+
 	// add pingable method to know we're up
 	srvc.e.GET("/", func(c echo.Context) error {
 		return c.JSON(http.StatusOK, "OK")
@@ -421,6 +432,10 @@ func reformatClassifierLookupResponse(cr []byte) ([]map[string]interface{}, erro
 func (s *OtfAlignService) Shutdown() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	if err := s.c.Close(); err != nil {
+		fmt.Println("could not close echo jaegertracing")
+		s.e.Logger.Warn(err)
+	}
 	if err := s.e.Shutdown(ctx); err != nil {
 		fmt.Println("could not shut down server cleanly: ", err)
 		s.e.Logger.Fatal(err)
