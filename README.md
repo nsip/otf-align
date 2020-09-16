@@ -77,7 +77,7 @@ These are the configuration options:
 |port|int|yes|auto-generated|port to run the service on|
 |niasHost|string|yes|localhost|host of n3w service|
 |niasPort|int|yes|1323|port of the n3w service|
-|niasToken|string|yes|xxx.yyy|jwt token for accessing the n3w server|
+|niasToken|string|yes|a demo|jwt token for accessing the n3w server|
 |tcHost|string|yes|localhost|host address for text classification service|
 |tcPort|int|yes|1576|port classifier service runs on|    
 
@@ -101,6 +101,8 @@ The otf-align service requires supporting services to be available:
     + binary can be created from http://github.com/nsip/otf-calssifier
 - n3w, provides the lookup graphs for mapped alignments
     + binary can be created from http://github.com/nsip/n3-web
+- benthos, workflow engine installed and available
+- nats-streaming-server, message broker installed and avialable
 
 # benthos workflow
 As with otf-reader the service is packaged with a benthos workflow which allows the testing of otf-align in context and interacting with the other progress data management services.
