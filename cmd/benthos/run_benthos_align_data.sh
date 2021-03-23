@@ -3,4 +3,4 @@
 
 benthos lint alignData.yaml
 
-clear && benthos -c alignData.yaml
+clear && benthos --chilled -c alignData.yaml
