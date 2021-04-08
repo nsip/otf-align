@@ -1,7 +1,7 @@
 package otfalign
 
 import (
-	"github.com/nsip/otf-align/internal/util"
+	util "github.com/nsip/otf-util"
 )
 
 type Option func(*OtfAlignService) error
@@ -32,7 +32,7 @@ func Name(name string) Option {
 			s.serviceName = name
 			return nil
 		}
-		s.serviceName = util.GenerateName()
+		s.serviceName = util.GenerateName("otf-align")
 		return nil
 	}
 }

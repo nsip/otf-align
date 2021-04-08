@@ -13,7 +13,7 @@ import (
 	"github.com/iancoleman/strcase"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/gommon/log"
-	"github.com/nsip/otf-align/internal/util"
+	util "github.com/nsip/otf-util"
 	"github.com/pkg/errors"
 	"github.com/tidwall/gjson"
 )
@@ -431,7 +431,7 @@ func (s *OtfAlignService) Shutdown() {
 func (s *OtfAlignService) PrintConfig() {
 
 	fmt.Println("\n\tOTF-Align Service Configuration")
-	fmt.Println("\t---------------------------------\n")
+	fmt.Println("\t---------------------------------")
 
 	s.printID()
 	s.printNiasConfig()

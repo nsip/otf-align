@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"syscall"
 
 	otfal "github.com/nsip/otf-align"
-	"github.com/peterbourgon/ff"
+	"github.com/peterbourgon/ff/v3"
 )
 
 func main() {
@@ -55,7 +56,7 @@ func main() {
 	// signal handler for shutdown
 	closed := make(chan struct{})
 	c := make(chan os.Signal)
-	signal.Notify(c, os.Kill, os.Interrupt)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-c
 		fmt.Println("\notf-align shutting down")
