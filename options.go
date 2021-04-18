@@ -67,8 +67,8 @@ func Host(hname string) Option {
 }
 
 //
-// set the port to run this ersvice on.
-// if 0 then acquire avaialble port from OS
+// set the port to run this service on.
+// if 0 then acquire available port from OS
 //
 func Port(port int) Option {
 	return func(s *OtfAlignService) error {
@@ -87,7 +87,7 @@ func Port(port int) Option {
 
 //
 // set the hostname/address of the nias3 web server
-// defaults to loacalhost if no host given
+// defaults to localhost if no host given
 //
 func NiasHost(hname string) Option {
 	return func(s *OtfAlignService) error {
