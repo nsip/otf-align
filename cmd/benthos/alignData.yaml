@@ -11,6 +11,7 @@ http:
   read_timeout: 5s
   root_path: /benthos
   debug_endpoints: false
+  
 input:
   type: nats_stream
   nats_stream:
