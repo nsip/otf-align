@@ -11,5 +11,5 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/speps/go-hashids v2.0.0+incompatible
 	github.com/tidwall/gjson v1.9.3
-	golang.org/x/crypto v0.0.0-20200604202706-70a84ac30bf9 // indirect
+	golang.org/x/crypto v0.1.0 // indirect
 )
