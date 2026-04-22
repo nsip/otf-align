@@ -1,6 +1,6 @@
 module github.com/nsip/otf-align
 
-go 1.14
+go 1.24.0
 
 require (
 	github.com/iancoleman/strcase v0.0.0-20191112232945-16388991a334
@@ -11,5 +11,17 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/speps/go-hashids v2.0.0+incompatible
 	github.com/tidwall/gjson v1.9.3
-	golang.org/x/crypto v0.0.0-20200604202706-70a84ac30bf9 // indirect
+)
+
+require (
+	github.com/mattn/go-colorable v0.1.11 // indirect
+	github.com/mattn/go-isatty v0.0.14 // indirect
+	github.com/tidwall/match v1.1.1 // indirect
+	github.com/tidwall/pretty v1.2.0 // indirect
+	github.com/valyala/bytebufferpool v1.0.0 // indirect
+	github.com/valyala/fasttemplate v1.2.1 // indirect
+	golang.org/x/crypto v0.45.0 // indirect
+	golang.org/x/net v0.47.0 // indirect
+	golang.org/x/sys v0.38.0 // indirect
+	golang.org/x/text v0.31.0 // indirect
 )
