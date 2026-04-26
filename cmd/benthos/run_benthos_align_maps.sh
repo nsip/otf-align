@@ -8,4 +8,4 @@ curl -s  -X POST http://localhost:1323/admin/newdemocontext -d userName=nsipOtf 
 # now run the workflow
 # 
 benthos lint alignMaps.yaml
-clear && benthos -c alignMaps.yaml
+clear && benthos --chilled -c alignMaps.yaml

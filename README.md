@@ -1,6 +1,13 @@
 # otf-align
 Web-Service to determine alignment of an assessment result to NLPs
 
+# build
+
+```
+cd cmd
+go build
+```
+
 # usage
 otf-align is a web service that accepts simple requests for alignment of assessment data to the National Learning Progressions.
 
